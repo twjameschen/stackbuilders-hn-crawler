@@ -4,14 +4,14 @@ An incremental Python 3.12 hiring exercise. The intended application will read
 the first 30 entries directly from Hacker News HTML, apply two title-length
 filters, and persist usage data in local SQLite.
 
-## Current status: Phase 3
+## Current status: Phase 4, Increment A
 
 Implemented: a frozen `Entry(number, title, points, comments)` dataclass,
 Unicode-aware title word counting, two pure filters, and a pure HTML parser
 with offline tests. `parse_homepage(html)` uses Beautiful Soup with the
 standard-library `html.parser` backend and returns the first 30 entry rows
-in source order. The application HTTP fetcher, SQLite storage, and CLI are
-**not implemented**. Requests is not installed.
+in source order. The Requests fetcher and argparse CLI are implemented.
+SQLite usage recording is **not implemented yet**.
 
 `count_words` splits on whitespace and counts a token once if it contains a
 Unicode letter or number. Numeric tokens count as words by assumption;
@@ -61,16 +61,28 @@ commands, and observed verification results are recorded in
 [the setup record](docs/SETUP.md). The development snapshot pins transitive
 packages; the build backend is pinned separately in `pyproject.toml`.
 
-## Planned commands (not available yet)
+## Run
 
-The proposed argparse interface is:
+The module entry point outputs a Unicode-preserving JSON array with only
+`number`, `title`, `points`, and `comments`. The default mode is `all`:
 
 ```powershell
-& .\.venv\Scripts\python.exe -m hn_crawler --filter long-title-comments
-& .\.venv\Scripts\python.exe -m hn_crawler --filter short-title-points
+& .\.venv\Scripts\python.exe -m hn_crawler --filter all
+& .\.venv\Scripts\python.exe -m hn_crawler --filter long
+& .\.venv\Scripts\python.exe -m hn_crawler --filter short
 ```
 
-These identifiers and CLI details are proposals.
+`all` preserves the original 30-entry source order. `long` and `short` use
+the pure filters described above. Empty filtered results produce `[]`.
+Success returns exit 0; HTTP/parsing failures return exit 1 with diagnostics
+on stderr and no result JSON. Invalid arguments use argparse's exit 2.
+
+Each valid invocation fetches the fixed HTTPS homepage once, with User-Agent
+`stackbuilders-hn-crawler/0.1.0`, TLS verification, and connect/read timeouts
+of 5/10 seconds. There are no retries. Redirects are rejected to avoid
+requesting a different URL. Requests timeouts are **not a strict total-operation
+deadline**; read timeout limits inactivity between received data, not total
+download duration. No scheduling, caching, or asynchronous execution is used.
 
 ## Run the implemented tests
 
@@ -79,15 +91,16 @@ These identifiers and CLI details are proposals.
 & .\.venv\Scripts\python.exe -m pip check
 ```
 
-Phase 3 verification: 70 tests passed, including the existing 32 model/filter
-tests; `pip check` reported no broken requirements. Tests use in-memory entries
-and offline HTML, and access no network or database.
+Increment A verification: 91 offline tests passed; `pip check` reported no
+broken requirements. HTTP tests mock Requests and CLI tests use small
+monkeypatch seams. Existing model/filter/parser tests still pass.
 
 ## Organization and ownership
 
 `src/hn_crawler/models.py` holds the entry model and `filters.py` holds pure
 word counting, selection, and sorting. `parser.py` converts supplied HTML to
-entries. `tests/` holds offline tests and small captured row excerpts with
+entries. `fetch.py` handles HTTP; `cli.py` orchestrates the module entry point.
+`tests/` holds offline tests and small captured row excerpts with
 provenance; its fixture builder supplies clearly synthetic test pages.
 `docs/DESIGN.md` records decisions. Keep pure
 filtering independent of network access and persistence. No frontend, API

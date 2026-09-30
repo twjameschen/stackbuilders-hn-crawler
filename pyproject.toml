@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "An incremental Hacker News HTML crawler hiring exercise."
 readme = "README.md"
 requires-python = ">=3.12,<3.13"
-dependencies = ["beautifulsoup4==4.15.0"]
+dependencies = ["beautifulsoup4==4.15.0", "requests==2.34.2"]
 
 [project.optional-dependencies]
 dev = ["pytest==9.1.1"]

@@ -39,12 +39,12 @@ def page(rows=None):
 def test_representative_thirty_entry_page_preserves_all_fields_and_source_order():
     rows = [
         story(40, "First source row", "2 points", "10 comments"),
-        story(7, "Second source row", "10 points", "1 comment"),
+        story(2, "Second source row", "10 points", "1 comment"),
         *[story(number) for number in range(3, 31)],
     ]
     expected = [
         Entry(40, "First source row", 2, 10),
-        Entry(7, "Second source row", 10, 1),
+        Entry(2, "Second source row", 10, 1),
         *[Entry(number, f"Story {number}", 10, 2) for number in range(3, 31)],
     ]
 

@@ -39,10 +39,10 @@ Use Python 3.12, Requests, Beautiful Soup, standard-library `sqlite3` and
 | --- | --- |
 | `models.py` | Implemented: frozen `Entry` with `number`, `title`, `points`, `comments` |
 | `filters.py` | Implemented: pure word counting, selection, and deterministic sorting |
-| `fetch.py` | Planned: HTTP access with explicit timeout and error handling |
+| `fetch.py` | Implemented: fixed-URL Requests fetch with finite timeouts |
 | `parser.py` | Implemented: parse the first 30 supplied HTML entry rows |
 | `storage.py` | Planned: local SQLite usage persistence |
-| `cli.py`, `__main__.py` | Planned: argument parsing and operation orchestration |
+| `cli.py`, `__main__.py` | Implemented: argparse, JSON output, operation orchestration |
 
 `Entry.number` is the original homepage rank; numeric fields have integer type
 annotations. The dataclass is frozen and adds no runtime validation or class
@@ -53,8 +53,8 @@ hierarchy. The parsing policy below handles missing HTML fields.
 `filter_short_titles` sorts by `(-points, number)`. Each returns a new list,
 leaving input order and field values unchanged. Empty results are valid.
 
-The CLI will record the start time, fetch and parse HTML, call a pure filter,
-and persist usage. Exact failure and persistence semantics remain unresolved.
+The CLI fetches once, parses HTML, applies the requested pure filter, and
+outputs JSON. Usage recording will be added in Increment B.
 Avoid inheritance, generic repositories, and unnecessary dependencies.
 
 ## HTML observations and parsing policy
@@ -113,12 +113,23 @@ where available. Parsing is atomic: no partial list is returned on failure.
 
 - Reinspect HTML before supporting other scoreless/deleted-entry layouts;
   their behavior is not inferred from absence alone.
-- Confirm CLI names, output format, database path, and filter identifiers;
-  proposed identifiers are `long-title-comments` and `short-title-points`.
-- Decide whether failed operations are logged, what additional usage fields are
-  useful, and how database write failures affect CLI output and exit status.
-- Confirm HTTP timeout/retry policy and usage expectations when implementing
-  the application fetcher.
+- SQLite usage storage and failure semantics remain for Increment B.
+
+## HTTP and CLI policy
+
+The fetcher uses Requests at the fixed `https://news.ycombinator.com/` URL,
+an application User-Agent, TLS verification, and `(5, 10)` connect/read
+timeouts. It checks status before returning HTML and closes the response.
+Automatic redirects are disabled and 3xx responses rejected; there are no
+automatic retries. Requests timeouts do not impose a total deadline, including
+DNS/address-attempt and sustained-download time.
+
+The CLI accepts `--filter all|long|short`, defaulting to `all`. Identifiers are
+used consistently; `all` preserves source order. Output is a JSON array with
+exactly the four entry fields, using UTF-8 at the module entry point and
+unescaped Unicode. Diagnostics go to stderr. Request/parsing failures return
+1 without JSON; argparse errors return 2 before fetching. Programming errors
+are not hidden by a catch-all handler.
 
 ## Verification
 
@@ -140,3 +151,8 @@ A separate development check successfully parsed all 30 captured homepage rows.
 Later phases will use temporary SQLite databases for persistence tests,
 including timezone-aware timestamps. Keep HTTP and CLI tests separate from
 pure logic tests.
+
+Increment A passes 91 offline tests. HTTP tests mock the Requests boundary;
+CLI tests check modes, fields, Unicode, empty results, errors, and the module
+help entry point. The representative parser fixture's duplicate synthetic
+item ID was corrected without adding parser uniqueness validation.

@@ -32,6 +32,11 @@ Preserve an existing environment and verify it before installation:
 | Beautiful Soup (beautifulsoup4) | 4.15.0 |
 | soupsieve | 2.10 |
 | typing_extensions | 4.16.0 |
+| Requests | 2.34.2 |
+| certifi | 2026.7.22 |
+| charset-normalizer | 3.5.2 |
+| idna | 3.20 |
+| urllib3 | 2.8.0 |
 | pytest | 9.1.1 |
 | colorama | 0.4.6 |
 | iniconfig | 2.3.0 |
@@ -39,12 +44,12 @@ Preserve an existing environment and verify it before installation:
 | pluggy | 1.6.0 |
 | Pygments | 2.21.0 |
 
-`pyproject.toml` pins Beautiful Soup, pytest, and the build backend.
+`pyproject.toml` pins Beautiful Soup, Requests, pytest, and the build backend.
 `requirements-dev.txt` records the resolved runtime and development dependencies,
 including transitive packages. Existing dependency versions were preserved.
 Setuptools runs in pip's isolated build environment; it is not a runtime
-dependency. Beautiful Soup is the only direct application runtime dependency;
-it uses the standard-library `html.parser` backend without lxml or html5lib.
+dependency. Beautiful Soup and Requests are the direct runtime dependencies.
+Parsing uses standard-library `html.parser` without lxml or html5lib.
 
 The original development installation used
 `& .\.venv\Scripts\python.exe -m pip install --no-cache-dir -e ".[dev]"`.
@@ -59,3 +64,6 @@ and returned exit 5, as expected before behavior was implemented.
 Phase 3 verified the updated editable installation, Beautiful Soup on Python
 3.12.3, all 70 offline tests, and `pip check`. Run tests with
 `& .\.venv\Scripts\python.exe -m pytest -q`.
+
+Increment A verified Requests 2.34.2 on the same interpreter, preserving
+existing versions, all 91 offline tests, and `pip check`.

@@ -28,4 +28,9 @@ Phase 3 initial parser tests failed with a missing-module collection error
 (exit 2). After implementation, all 70 tests passed, including the original
 32 model/filter tests. No test accesses the network or a database. Full-page
 captures used for development inspection are not required to run tests.
-Storage and application HTTP tests remain for later phases.
+`test_fetch.py` mocks Requests to check URL, headers, finite timeouts, TLS,
+response closure, status/redirect failures, and transport errors without retry.
+`test_cli.py` checks all/default/long/short modes, JSON fields and Unicode,
+empty filtered results, argparse errors, operational diagnostics, and the
+module help entry point. Increment A passes 91 offline tests. Storage tests
+remain for Increment B.

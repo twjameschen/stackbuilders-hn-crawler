@@ -1,12 +1,17 @@
-# Tested through Phase 3 on Windows, Python 3.12.3.
+# Tested through Phase 4 on Windows, Python 3.12.3.
 # Runtime and development dependency snapshot; build backend is pinned in pyproject.toml.
 # Generated using: .venv\Scripts\python.exe -m pip freeze --exclude-editable
 beautifulsoup4==4.15.0
+certifi==2026.7.22
+charset-normalizer==3.5.2
 colorama==0.4.6
+idna==3.20
 iniconfig==2.3.0
 packaging==26.3
 pluggy==1.6.0
 Pygments==2.21.0
 pytest==9.1.1
+requests==2.34.2
 soupsieve==2.10
 typing_extensions==4.16.0
+urllib3==2.8.0
