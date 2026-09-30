@@ -1,1 +1,1 @@
-"""Hacker News exercise package; application behavior is not implemented yet."""
+"""Entry data and pure filters for the incremental Hacker News exercise."""
