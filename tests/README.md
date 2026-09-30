@@ -32,5 +32,15 @@ captures used for development inspection are not required to run tests.
 response closure, status/redirect failures, and transport errors without retry.
 `test_cli.py` checks all/default/long/short modes, JSON fields and Unicode,
 empty filtered results, argparse errors, operational diagnostics, and the
-module help entry point. Increment A passes 91 offline tests. Storage tests
-remain for Increment B.
+module help entry point. Increment A passes 91 offline tests.
+
+Increment B adds real SQLite tests using `tmp_path`. CLI tests temporarily
+change the working directory so default-path tests never use the developer's
+database. They check successful/failed events, UTC operation-start timestamps,
+monotonic duration, counts, filter IDs, append behavior, initialization before
+HTTP, record-before-output ordering, write failures, and combined diagnostics.
+`test_storage.py` checks table initialization, parameterized values, reopened
+persistence, and connection closure. `conftest.py` supplies a small synthetic
+30-entry response for end-to-end tests; only HTTP is replaced while parsing,
+filtering, and storage remain real. Increment B passes 112 offline tests.
+No normal test contacts the network or writes to the developer's usage database.

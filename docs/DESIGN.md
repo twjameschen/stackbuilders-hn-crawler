@@ -41,7 +41,7 @@ Use Python 3.12, Requests, Beautiful Soup, standard-library `sqlite3` and
 | `filters.py` | Implemented: pure word counting, selection, and deterministic sorting |
 | `fetch.py` | Implemented: fixed-URL Requests fetch with finite timeouts |
 | `parser.py` | Implemented: parse the first 30 supplied HTML entry rows |
-| `storage.py` | Planned: local SQLite usage persistence |
+| `storage.py` | Implemented: initialize SQLite and append usage events |
 | `cli.py`, `__main__.py` | Implemented: argparse, JSON output, operation orchestration |
 
 `Entry.number` is the original homepage rank; numeric fields have integer type
@@ -53,8 +53,8 @@ hierarchy. The parsing policy below handles missing HTML fields.
 `filter_short_titles` sorts by `(-points, number)`. Each returns a new list,
 leaving input order and field values unchanged. Empty results are valid.
 
-The CLI fetches once, parses HTML, applies the requested pure filter, and
-outputs JSON. Usage recording will be added in Increment B.
+The CLI initializes storage, fetches once, parses HTML, applies the requested
+pure filter, and saves usage before outputting JSON.
 Avoid inheritance, generic repositories, and unnecessary dependencies.
 
 ## HTML observations and parsing policy
@@ -113,7 +113,6 @@ where available. Parsing is atomic: no partial list is returned on failure.
 
 - Reinspect HTML before supporting other scoreless/deleted-entry layouts;
   their behavior is not inferred from absence alone.
-- SQLite usage storage and failure semantics remain for Increment B.
 
 ## HTTP and CLI policy
 
@@ -130,6 +129,39 @@ exactly the four entry fields, using UTF-8 at the module entry point and
 unescaped Unicode. Diagnostics go to stderr. Request/parsing failures return
 1 without JSON; argparse errors return 2 before fetching. Programming errors
 are not hidden by a catch-all handler.
+
+## Usage storage and failures
+
+`--db PATH` defaults to `data/usage.sqlite3` relative to the current working
+directory. Initialization creates parent directories and one `usage_events`
+table. A short `BEGIN IMMEDIATE` transaction checks writable storage and a
+column query checks schema compatibility before HTTP. No migration layer is
+provided. The initialization connection is closed before fetching.
+
+The CLI captures UTC `requested_at` immediately after valid argument parsing,
+before storage initialization, and measures elapsed time with `monotonic_ns`.
+Each event stores an integer ID, requested time, filter ID, `success`/`failure`,
+fetched count, result count, integer duration milliseconds, and nullable error
+class name. Counts refer to complete parsed entries and selected results;
+atomic parser failures have fetched/result counts zero. Duration includes
+initialization and crawl/result preparation, but excludes final recording and
+stdout delivery. Only usage metadata is stored, not scraped content or personal
+information. All INSERT values are parameterized. Transactions commit/rollback
+and connections close on both success and exceptions.
+
+For a successful or handled failed crawl, attempt one event insertion. A
+successful event is committed before JSON is emitted. Request and parser
+errors are diagnosed on stderr, recorded as failures if possible, and return
+exit 1. Storage initialization errors return 1 before HTTP and may leave no
+event. Record-write errors return 1 without successful JSON; if crawling also
+failed, both contexts remain in stderr. There are no recursive logging attempts
+or claims that an unavailable database can record its own failure.
+
+Filesystem/SQLite errors are caught at the CLI boundary along with Requests
+and domain parsing exceptions. Unexpected programming exceptions propagate.
+Storage can become unavailable after the initial check. SQLite commit and
+stdout delivery are not a shared transaction, so a committed crawl event is
+not a guarantee that a downstream consumer received the output.
 
 ## Verification
 
@@ -148,11 +180,15 @@ pages, observed comment labels, job normalization and failures, metadata
 ownership, entities, nested title text, spacing, and parser-to-filter behavior.
 A separate development check successfully parsed all 30 captured homepage rows.
 
-Later phases will use temporary SQLite databases for persistence tests,
-including timezone-aware timestamps. Keep HTTP and CLI tests separate from
-pure logic tests.
+Keep HTTP, CLI, and storage tests separate from pure logic tests.
 
 Increment A passes 91 offline tests. HTTP tests mock the Requests boundary;
 CLI tests check modes, fields, Unicode, empty results, errors, and the module
 help entry point. The representative parser fixture's duplicate synthetic
 item ID was corrected without adding parser uniqueness validation.
+
+Increment B passes 112 offline tests using `tmp_path` databases. Tests reopen
+SQLite to verify persistence, check identifiers/timestamps/counts/durations,
+append multiple events, exercise initialization/write failures, preserve dual
+error diagnostics, and run real parser/filter/storage integration with only
+the Requests boundary mocked.

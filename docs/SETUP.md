@@ -67,3 +67,6 @@ Phase 3 verified the updated editable installation, Beautiful Soup on Python
 
 Increment A verified Requests 2.34.2 on the same interpreter, preserving
 existing versions, all 91 offline tests, and `pip check`.
+
+Increment B uses standard-library SQLite with no new dependencies. All 112
+offline tests and `pip check` passed on the existing Python 3.12.3 environment.
