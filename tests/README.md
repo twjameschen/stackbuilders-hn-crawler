@@ -44,3 +44,14 @@ persistence, and connection closure. `conftest.py` supplies a small synthetic
 30-entry response for end-to-end tests; only HTTP is replaced while parsing,
 filtering, and storage remain real. Increment B passes 112 offline tests.
 No normal test contacts the network or writes to the developer's usage database.
+
+`test_homepage_job.py` adds 23 focused cases using the exact Phase 4 homepage
+job row pair plus synthetic stories. The captured regression first failed with
+`Entry id=49911531 (rank 8): invalid job metadata; expected age only` (exit 1).
+It now passes alongside age-only `/jobs` coverage. Tests permit whitespace
+around the observed `|` separator and reject missing/mismatched age/hide,
+duplicates, unexpected links/tags/metrics, and unexplained metadata text.
+Three real CLI/parser/filter/SQLite scenarios replace only Requests and verify
+fixed expected rank sequences and one success record per invocation.
+All 135 offline tests pass. No full development snapshot is needed by pytest;
+captured versus synthetic provenance is documented in `fixtures/README.md`.

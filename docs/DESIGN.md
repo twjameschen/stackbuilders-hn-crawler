@@ -66,7 +66,7 @@ then a spacer row. Ordinary metadata uses `td.subtext > span.subline` with
 comments anchor use `item?id=<item ID>`, so matching the URL alone is unsafe.
 Plural comments, singular `1 comment`, and `discuss` were observed.
 
-No jobs appeared in that homepage capture. Inspection of the official jobs
+No jobs appeared in the Phase 3 homepage capture. Inspection of the official jobs
 page showed the same entry classes, but its second cell contains
 `img[src="s.gif"][height="1"][width="14"]` instead of a voting control;
 the adjacent `td.subtext` contains only a direct `span.age` with an item link.
@@ -74,6 +74,14 @@ Neither a `nofollow` title link nor missing metrics alone identifies a job:
 the captured `discuss` story also has `nofollow`. Small exact captured row
 pairs and source provenance are in `tests/fixtures/`; the full pages are not
 submission fixtures. The remaining test HTML is explicitly synthetic.
+
+The saved Phase 4 homepage response contains job `49911531` at rank 8, with
+the same spacer image, no score/subline, and direct age plus hide metadata:
+`<span class="age"><a href="item?id=49911531">51 minutes ago</a></span> |`
+`<a href="hide?id=49911531&amp;goto=news">hide</a>`.
+This valid homepage layout exposed the age-only rule's incompleteness.
+Its exact row pair is retained in `tests/fixtures/homepage_job.html`, alongside
+the unchanged age-only `/jobs` excerpt; provenance is recorded separately.
 
 The parser uses Beautiful Soup and `html.parser`, without regex or network:
 
@@ -96,17 +104,21 @@ The parser uses Beautiful Soup and `html.parser`, without regex or network:
   nonnegative integers. Missing, malformed, ambiguous, or mismatched normal
   story metrics raise contextual errors rather than becoming zero.
 - Normalize both missing job metrics to zero **only** with the observed
-  second-cell spacer image plus age-only metadata signature: no subline,
-  no score, one age link matching the item ID, and no other metadata text.
+  second-cell spacer image plus either observed job metadata structure: no
+  subline/score, one direct age span containing only a nonempty item link
+  matching the current ID, optionally followed by `|` and one direct link
+  labeled `hide` with href exactly `hide?id=<current ID>&goto=news`.
+  Surrounding whitespace is allowed. Duplicate/unexpected links or tags,
+  missing/mismatched age, mismatched hide, unexpected metrics, and unexplained
+  metadata text are rejected. No arbitrary text/link removal is performed.
   Damaged job metadata fails. This zero is a filtering normalization, not an
   assertion that the site displayed numeric zero.
 
-This recognizes the observed job layout, not every possible job presentation.
+This recognizes the two observed job layouts, not every possible job presentation.
 HTML provides no explicit job-type field here; the combined structure is the
 evidence used. Unknown scoreless stories and future layouts fail rather than
-triggering fallback selectors. Job normalization on the homepage is tested
-using a captured jobs-page row in a clearly assembled test page; it was not
-observed on the captured homepage itself. Errors include item ID and rank
+triggering fallback selectors. Both captured job layouts are tested in clearly
+assembled pages with synthetic ordinary rows. Errors include item ID and rank
 where available. Parsing is atomic: no partial list is returned on failure.
 
 ## Unresolved decisions
@@ -142,10 +154,13 @@ The CLI captures UTC `requested_at` immediately after valid argument parsing,
 before storage initialization, and measures elapsed time with `monotonic_ns`.
 Each event stores an integer ID, requested time, filter ID, `success`/`failure`,
 fetched count, result count, integer duration milliseconds, and nullable error
-class name. Counts refer to complete parsed entries and selected results;
-atomic parser failures have fetched/result counts zero. Duration includes
-initialization and crawl/result preparation, but excludes final recording and
-stdout delivery. Only usage metadata is stored, not scraped content or personal
+class name. `fetched_count` means successfully parsed entries, and `result_count`
+means selected results. Atomic parse failure records zero for both even if HTTP
+returned a response. `duration_ms` ends immediately before usage recording:
+it includes initialization and crawl/result preparation, and excludes the final
+SQLite write and output. `status=success` describes successful crawl/filter
+processing and a committed usage record; it cannot guarantee downstream stdout
+delivery. Only usage metadata is stored, not scraped content or personal
 information. All INSERT values are parameterized. Transactions commit/rollback
 and connections close on both success and exceptions.
 
@@ -192,3 +207,21 @@ SQLite to verify persistence, check identifiers/timestamps/counts/durations,
 append multiple events, exercise initialization/write failures, preserve dual
 error diagnostics, and run real parser/filter/storage integration with only
 the Requests boundary mocked.
+
+The homepage-job regression failed before the fix with the rank-8 age-only
+parsing error. The focused extension passes 135 offline tests, including
+strict damaged-job cases and CLI/parser/filter/storage integration for all
+three modes. The complete saved Phase 4 response parses to 30 entries;
+same-response checks confirmed ranks 1, 2, 8, 15, and 30. CLI validation using
+only substituted HTTP produced 30/23/7 entries for all/long/short and one
+successful usage event per invocation. Expected ordering was calculated
+independently of the application filters. The full page stays ignored because
+the compact job excerpt adds the needed new structure coverage.
+
+After the fix, one fresh live `all` invocation started at
+`2026-09-30T18:25:20.830155+00:00` and made exactly one HTTP request. It exited
+0 with 30 JSON entries and one committed success event (`fetched_count=30`,
+`result_count=30`, `error_type=NULL`). The same job appeared at rank 9 with
+age-plus-hide metadata and normalized zero metrics. Fields at ranks 1, 2, 9,
+15, and 30 matched that invocation's retained response. Live artifacts remain
+ignored; no comparison used a later refresh. Dependencies and schema are unchanged.

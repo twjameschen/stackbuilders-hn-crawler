@@ -1,6 +1,6 @@
 """Parse the observed Hacker News row layout without network or storage access."""
 
-from bs4 import BeautifulSoup, Tag
+from bs4 import BeautifulSoup, NavigableString, Tag
 
 from hn_crawler.models import Entry
 
@@ -12,8 +12,8 @@ class HNParseError(ValueError):
 def parse_homepage(html: str) -> list[Entry]:
     """Return the original first 30 entry rows in source order, or raise.
 
-    Job rows with the observed spacer-image and age-only metadata signature
-    normalize absent points and comments to zero. Normal stories require both
+    Job rows with the observed spacer image and age (plus optional matching
+    hide link) normalize absent points and comments to zero. Stories require both
     metrics. Titles retain internal spacing; only surrounding whitespace is trimmed.
     """
     soup = BeautifulSoup(html, "html.parser")
@@ -34,6 +34,38 @@ def _metric(text: str, units: tuple[str, ...], context: str, field: str) -> int:
     if len(parts) != 2 or parts[1] not in units:
         raise HNParseError(f"{context}: invalid {field} label: {text!r}")
     return _integer(parts[0], context, field)
+
+
+def _validate_job_metadata(subtext: Tag, item_id: str, context: str) -> None:
+    """Accept only the captured age-only and age | hide job structures."""
+    error = HNParseError(
+        f"{context}: invalid job metadata; expected age with optional matching hide link"
+    )
+    age = subtext.select_one(":scope > span.age > a")
+    if age is None or age.get("href") != f"item?id={item_id}" or not age.get_text().strip():
+        raise error
+
+    parts = [node for node in subtext.contents if isinstance(node, Tag) or node.strip()]
+    age_parts = [node for node in age.parent.contents if isinstance(node, Tag) or node.strip()]
+    if not parts or parts[0] is not age.parent or age_parts != [age]:
+        raise error
+
+    expected_tags = [age.parent, age]
+    if len(parts) == 3:
+        separator, hide = parts[1:]
+        if (
+            not isinstance(separator, NavigableString) or separator.strip() != "|"
+            or not isinstance(hide, Tag) or hide.name != "a"
+            or hide.get("href") != f"hide?id={item_id}&goto=news"
+            or hide.get_text().strip() != "hide"
+        ):
+            raise error
+        expected_tags.append(hide)
+    elif len(parts) != 1:
+        raise error
+
+    if subtext.find_all(True) != expected_tags or subtext.select_one("span.score") is not None:
+        raise error
 
 
 def _parse_entry(row: Tag) -> Entry:
@@ -66,15 +98,7 @@ def _parse_entry(row: Tag) -> Entry:
     subline = subtext.select_one("span.subline")
     spacer = row.select_one('td:nth-of-type(2) > img[src="s.gif"][height="1"][width="14"]')
     if spacer is not None and subline is None:
-        age = subtext.select_one(":scope > span.age > a")
-        if (
-            age is None
-            or age.get("href") != f"item?id={item_id}"
-            or len(subtext.find_all("a")) != 1
-            or subtext.select_one("span.score") is not None
-            or subtext.get_text().strip() != age.get_text().strip()
-        ):
-            raise HNParseError(f"{context}: invalid job metadata; expected age only")
+        _validate_job_metadata(subtext, item_id, context)
         return Entry(number, title, 0, 0)
 
     if subline is None:

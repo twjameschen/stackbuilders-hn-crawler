@@ -28,3 +28,22 @@ Live titles and metrics will change; tests use these fixed excerpts offline.
 All HTML produced by `story` and `page` in `test_parser.py` is synthetic,
 including deliberately damaged rows. The layout mirrors observed row structure;
 it does not assert that its made-up titles or item IDs were ever published.
+
+`homepage_job.html` contains one exact entry/metadata row pair from the saved
+Phase 4 homepage response, plus an added comment and table wrapper. Item
+`49911531`, rank 8, has the job spacer image and age **plus hide** metadata.
+The decoded hide href is `hide?id=49911531&goto=news`.
+
+Source: https://news.ycombinator.com/, fetched during the Phase 4 invocation
+whose operation started at `2026-09-30T17:51:27.668454+00:00`. This is an
+operation-start timestamp, not a measured response-arrival timestamp.
+The saved UTF-8 response is 34,072 bytes; SHA-256:
+`aabc268db34d4abf67739b9c90d1ec3c34e1ce92d06b1e29f0e0e2ddc3120c30`.
+Unlike the earlier Phase 3 homepage, this response does contain a job.
+The earlier captured `/jobs` age-only case remains unchanged.
+
+`test_homepage_job.py` combines this captured pair with 29 synthetic stories.
+Damaged variants are synthetic mutations, not captured site responses. The
+full Phase 4 page remains ignored: its additional ordinary rows repeat layout
+coverage already supplied by compact fixtures and synthetic tests. It is used
+for separate saved-response validation, not required by the normal test suite.

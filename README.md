@@ -27,7 +27,7 @@ first 30 homepage entry rows before extracting fields.
 
 The parser requires positive ranks, nonempty titles, and valid nonnegative
 metrics for normal stories. `discuss` means zero comments. Only identifiable
-job rows with the observed spacer-image and age-only metadata structure
+job rows with the observed spacer image and age-only or age-plus-hide metadata
 normalize absent points/comments to zero. Missing normal-story metadata is an
 error. Pages with fewer than 30 entry rows fail; selected malformed rows are
 not replaced by later rows. See [the parsing policy](docs/DESIGN.md).
@@ -92,10 +92,12 @@ reported as successful logging.
 
 The log contains UTC operation-start time with timezone information, filter
 identifier (`all`, `long`, `short`), status, fetched/result counts, monotonic
-duration in milliseconds, and error class name. `fetched_count` means fully
-parsed entries (zero on request/parser failure); empty filtered results remain
-successful with result count zero. Duration runs from operation start through
-result preparation, excluding the final event write and stdout emission.
+duration in milliseconds, and error class name. `fetched_count` means successfully
+parsed entries; parse failure records zero even when HTTP returned a response.
+Empty filtered results remain successful with result count zero. `duration_ms`
+ends immediately before usage recording, excluding the final SQLite write and
+output. `status=success` describes successful crawl/filter processing and a
+committed usage record; it cannot guarantee downstream stdout delivery.
 No scraped titles/content, full error messages, or personal information are
 stored. Event commit and output delivery are not one atomic transaction.
 
@@ -113,10 +115,16 @@ download duration. No scheduling, caching, or asynchronous execution is used.
 & .\.venv\Scripts\python.exe -m pip check
 ```
 
-Phase 4 verification: 112 offline tests passed; `pip check` reported no
+After the homepage-job fix, 135 offline tests passed; `pip check` reported no
 broken requirements. HTTP tests mock Requests; SQLite tests use temporary
 databases. Offline end-to-end tests exercise the real parser, filters, and
 storage with only HTTP replaced. Existing model/filter/parser tests still pass.
+
+The focused fix also validated the complete saved Phase 4 response offline:
+30 entries, then 23 long-title and 7 short-title results, with successful usage
+records. One fresh live `all` invocation returned exit 0, 30 JSON entries,
+and one committed success event. Its same-response checks included the job,
+now at rank 9. Live results change; fixed fixtures keep normal tests offline.
 
 ## Organization and ownership
 
