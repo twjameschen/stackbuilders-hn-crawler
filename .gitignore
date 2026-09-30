@@ -1,0 +1,29 @@
+# Local Python environment and setup temporary files
+.venv/
+.setup-tmp/
+
+# Python, packaging, and test artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Local SQLite databases, journals, WAL, and shared-memory sidecars
+*.db
+*.db-*
+*.sqlite
+*.sqlite-*
+*.sqlite3
+*.sqlite3-*
+
+# Local secrets
+.env
+.env.*
+secrets/
+*.pem
+*.key
