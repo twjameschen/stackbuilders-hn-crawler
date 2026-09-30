@@ -1,9 +1,12 @@
-# Tested Phase 1 development dependencies on Windows, Python 3.12.3.
+# Tested through Phase 3 on Windows, Python 3.12.3.
+# Runtime and development dependency snapshot; build backend is pinned in pyproject.toml.
 # Generated using: .venv\Scripts\python.exe -m pip freeze --exclude-editable
-# Install together with the editable project; see README.md.
+beautifulsoup4==4.15.0
 colorama==0.4.6
 iniconfig==2.3.0
 packaging==26.3
 pluggy==1.6.0
 Pygments==2.21.0
 pytest==9.1.1
+soupsieve==2.10
+typing_extensions==4.16.0

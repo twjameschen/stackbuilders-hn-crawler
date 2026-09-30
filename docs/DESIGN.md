@@ -40,13 +40,13 @@ Use Python 3.12, Requests, Beautiful Soup, standard-library `sqlite3` and
 | `models.py` | Implemented: frozen `Entry` with `number`, `title`, `points`, `comments` |
 | `filters.py` | Implemented: pure word counting, selection, and deterministic sorting |
 | `fetch.py` | Planned: HTTP access with explicit timeout and error handling |
-| `parser.py` | Planned: convert supplied HTML into the original entries |
+| `parser.py` | Implemented: parse the first 30 supplied HTML entry rows |
 | `storage.py` | Planned: local SQLite usage persistence |
 | `cli.py`, `__main__.py` | Planned: argument parsing and operation orchestration |
 
 `Entry.number` is the original homepage rank; numeric fields have integer type
 annotations. The dataclass is frozen and adds no runtime validation or class
-hierarchy. Missing HTML fields are a later parser decision.
+hierarchy. The parsing policy below handles missing HTML fields.
 
 `count_words` uses whitespace splitting and Unicode-aware `str.isalnum`.
 `filter_long_titles` sorts by `(-comments, number)` and
@@ -57,18 +57,68 @@ The CLI will record the start time, fetch and parse HTML, call a pure filter,
 and persist usage. Exact failure and persistence semantics remain unresolved.
 Avoid inheritance, generic repositories, and unnecessary dependencies.
 
+## HTML observations and parsing policy
+
+Development inspection captured the homepage on 2026-10-01 (Asia/Taipei).
+It contained 30 `tr.athing` rows, each followed by a sibling metadata `tr`,
+then a spacer row. Ordinary metadata uses `td.subtext > span.subline` with
+`span.score[id="score_<item ID>"]`. Both the nested age anchor and the direct
+comments anchor use `item?id=<item ID>`, so matching the URL alone is unsafe.
+Plural comments, singular `1 comment`, and `discuss` were observed.
+
+No jobs appeared in that homepage capture. Inspection of the official jobs
+page showed the same entry classes, but its second cell contains
+`img[src="s.gif"][height="1"][width="14"]` instead of a voting control;
+the adjacent `td.subtext` contains only a direct `span.age` with an item link.
+Neither a `nofollow` title link nor missing metrics alone identifies a job:
+the captured `discuss` story also has `nofollow`. Small exact captured row
+pairs and source provenance are in `tests/fixtures/`; the full pages are not
+submission fixtures. The remaining test HTML is explicitly synthetic.
+
+The parser uses Beautiful Soup and `html.parser`, without regex or network:
+
+- Select `tr.athing` in source order and take the first 30 **before** extracting
+  fields. Fewer than 30 rows raises `HNParseError`. A selected failure aborts
+  parsing; do not substitute row 31. Later malformed entry fields are ignored.
+- Require an ASCII decimal item ID for association and a positive ASCII decimal
+  rank with the observed trailing dot. Preserve ranks and source order; ranks
+  need not be consecutive or sorted numerically.
+- Extract `.titleline > a` text, decoding entities and retaining nested text,
+  punctuation, and internal spacing (including nonbreaking spaces). Trim only
+  surrounding whitespace and reject empty titles. Exclude the site link.
+- Read only the next sibling `tr` as metadata; never search across neighboring
+  entries. For ordinary stories require a subline, exactly one matching score,
+  and exactly one direct subline anchor pointing to the entry's item URL.
+  This excludes the nested age link, user links, and hide links.
+- Points accept `<integer> point` or `<integer> points`; comments accept
+  `<integer> comment`, `<integer> comments`, or `discuss` (zero). Split metric
+  labels on whitespace, including `&nbsp;`. Counts must be ASCII decimal
+  nonnegative integers. Missing, malformed, ambiguous, or mismatched normal
+  story metrics raise contextual errors rather than becoming zero.
+- Normalize both missing job metrics to zero **only** with the observed
+  second-cell spacer image plus age-only metadata signature: no subline,
+  no score, one age link matching the item ID, and no other metadata text.
+  Damaged job metadata fails. This zero is a filtering normalization, not an
+  assertion that the site displayed numeric zero.
+
+This recognizes the observed job layout, not every possible job presentation.
+HTML provides no explicit job-type field here; the combined structure is the
+evidence used. Unknown scoreless stories and future layouts fail rather than
+triggering fallback selectors. Job normalization on the homepage is tested
+using a captured jobs-page row in a clearly assembled test page; it was not
+observed on the captured homepage itself. Errors include item ID and rank
+where available. Parsing is atomic: no partial list is returned on failure.
+
 ## Unresolved decisions
 
-- Inspect representative HTML before deciding missing points/comments behavior
-  (including job posts, new stories, `discuss` links, and deleted entries).
-  Do not silently assume missing values are zero.
-- Decide behavior when fewer than 30 valid entries exist or markup is malformed.
+- Reinspect HTML before supporting other scoreless/deleted-entry layouts;
+  their behavior is not inferred from absence alone.
 - Confirm CLI names, output format, database path, and filter identifiers;
   proposed identifiers are `long-title-comments` and `short-title-points`.
 - Decide whether failed operations are logged, what additional usage fields are
   useful, and how database write failures affect CLI output and exit status.
-- Confirm HTTP timeout/retry policy after inspecting the source and its usage
-  expectations. HTML inspection is deferred to a later phase.
+- Confirm HTTP timeout/retry policy and usage expectations when implementing
+  the application fetcher.
 
 ## Verification
 
@@ -80,6 +130,13 @@ boundaries, numeric descending sorts, rank ties, preserved input and ranks,
 empty results, complementary selections, and no truncation above 30 entries.
 Tests access no real network or database.
 
-Later phases will use representative saved HTML fixtures for parser tests and
-temporary SQLite databases for persistence tests, including timezone-aware
-timestamps. Keep HTTP and CLI tests separate from pure logic tests.
+Phase 3 added 38 parser/integration tests, bringing the total to 70. Initial
+parser tests failed because the module was missing. Tests cover source-order
+extraction, the 30-row boundary, malformed selected/later rows, incomplete
+pages, observed comment labels, job normalization and failures, metadata
+ownership, entities, nested title text, spacing, and parser-to-filter behavior.
+A separate development check successfully parsed all 30 captured homepage rows.
+
+Later phases will use temporary SQLite databases for persistence tests,
+including timezone-aware timestamps. Keep HTTP and CLI tests separate from
+pure logic tests.

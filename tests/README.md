@@ -16,4 +16,16 @@ The first run returned exit 2 with `ModuleNotFoundError` for the missing
 `hn_crawler.models` and `hn_crawler.filters` modules. After implementation,
 32 tests passed (exit 0). `pip check` found no broken requirements.
 
-Parser fixtures and storage tests remain for later phases.
+`test_parser.py` adds 38 offline parser/integration tests. A compact local
+`story`/`page` builder produces synthetic HTML; expected fields and ordering
+are specified independently of the parser. Four captured row pairs in
+`fixtures/captured_rows.html` cover ordinary/plural comments, singular comments,
+`discuss`, and a job. See `fixtures/README.md` for provenance and limitations.
+The captured excerpts are not a complete homepage and are combined with
+synthetic rows only in explicitly assembled test inputs.
+
+Phase 3 initial parser tests failed with a missing-module collection error
+(exit 2). After implementation, all 70 tests passed, including the original
+32 model/filter tests. No test accesses the network or a database. Full-page
+captures used for development inspection are not required to run tests.
+Storage and application HTTP tests remain for later phases.
