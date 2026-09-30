@@ -1,5 +1,7 @@
 """Parse the observed Hacker News row layout without network or storage access."""
 
+from urllib.parse import parse_qs, urlsplit
+
 from bs4 import BeautifulSoup, NavigableString, Tag
 
 from hn_crawler.models import Entry
@@ -36,6 +38,18 @@ def _metric(text: str, units: tuple[str, ...], context: str, field: str) -> int:
     return _integer(parts[0], context, field)
 
 
+def _matches_hide_url(href: str, item_id: str) -> bool:
+    """Navigation parameters do not identify the entry; one matching ID does."""
+    try:
+        url = urlsplit(href)
+    except ValueError:
+        return False
+    return (
+        not url.scheme and not url.netloc and url.path == "hide"
+        and parse_qs(url.query, keep_blank_values=True).get("id") == [item_id]
+    )
+
+
 def _validate_job_metadata(subtext: Tag, item_id: str, context: str) -> None:
     """Accept only the captured age-only and age | hide job structures."""
     error = HNParseError(
@@ -56,7 +70,7 @@ def _validate_job_metadata(subtext: Tag, item_id: str, context: str) -> None:
         if (
             not isinstance(separator, NavigableString) or separator.strip() != "|"
             or not isinstance(hide, Tag) or hide.name != "a"
-            or hide.get("href") != f"hide?id={item_id}&goto=news"
+            or not _matches_hide_url(hide.get("href", ""), item_id)
             or hide.get_text().strip() != "hide"
         ):
             raise error

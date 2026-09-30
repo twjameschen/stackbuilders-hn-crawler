@@ -43,8 +43,42 @@ def test_job_hide_separator_allows_whitespace(job_page, separator):
 
 
 @pytest.mark.parametrize(
+    "href",
+    ["hide?id=49911531", "hide?id=49911531&goto=jobs",
+     "hide?goto=news&id=49911531", "hide?goto=news%3Fp%3D2&id=49911531&extra=value",
+     "hide?id=49911531&goto=news#navigation"],
+)
+def test_job_hide_navigation_does_not_affect_entry_identity(job_page, href):
+    job_page.select_one("td.subtext").find("a", recursive=False)["href"] = href
+
+    assert parse_homepage(str(job_page))[0] == Entry(
+        8, "Bild AI (YC W25) Is Hiring a Founding Product Engineer", 0, 0,
+    )
+
+
+@pytest.mark.parametrize(
+    "href",
+    [None, "hide?goto=news", "hide?id=", "hide?id=49911532",
+     "hide?id=49911531&id=49911531", "hide?id=49911531&id=",
+     "hide?id=49911531&id=49911532", "item?id=49911531",
+     "/hide?id=49911531", "https://news.ycombinator.com/hide?id=49911531",
+     "https://example.test/hide?id=49911531", "//example.test/hide?id=49911531",
+     "https://[invalid/hide?id=49911531"],
+)
+def test_job_hide_requires_relative_hide_path_and_one_matching_id(job_page, href):
+    hide = job_page.select_one("td.subtext").find("a", recursive=False)
+    if href is None:
+        del hide["href"]
+    else:
+        hide["href"] = href
+
+    with pytest.raises(HNParseError, match="Entry id=49911531.*job metadata"):
+        parse_homepage(str(job_page))
+
+
+@pytest.mark.parametrize(
     "damage",
-    ["missing-age", "age-id", "hide-id", "hide-destination", "hide-label",
+    ["missing-age", "age-id", "hide-id", "hide-label",
      "duplicate-age", "duplicate-hide", "unexpected-link", "score",
      "comment-text", "unexplained-text", "wrong-separator", "missing-separator",
      "nested-hide", "empty-age", "unexpected-empty-metric"],
@@ -59,8 +93,6 @@ def test_damaged_homepage_job_is_rejected(job_page, damage):
         age.a["href"] = "item?id=49911532"
     elif damage == "hide-id":
         hide["href"] = "hide?id=49911532&goto=news"
-    elif damage == "hide-destination":
-        hide["href"] = "hide?id=49911531&goto=jobs"
     elif damage == "hide-label":
         hide.string = "10 comments"
     elif damage == "duplicate-age":

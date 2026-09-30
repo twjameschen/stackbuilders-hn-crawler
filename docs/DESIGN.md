@@ -107,7 +107,10 @@ The parser uses Beautiful Soup and `html.parser`, without regex or network:
   second-cell spacer image plus either observed job metadata structure: no
   subline/score, one direct age span containing only a nonempty item link
   matching the current ID, optionally followed by `|` and one direct link
-  labeled `hide` with href exactly `hide?id=<current ID>&goto=news`.
+  labeled `hide` with a relative `hide` URL and exactly one matching `id`
+  query value. Standard-library URL parsing ignores navigation parameters
+  such as `goto` and query order; missing/mismatched/duplicate IDs and external
+  URLs are rejected.
   Surrounding whitespace is allowed. Duplicate/unexpected links or tags,
   missing/mismatched age, mismatched hide, unexpected metrics, and unexplained
   metadata text are rejected. No arbitrary text/link removal is performed.
